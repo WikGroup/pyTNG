@@ -9,8 +9,10 @@ import sys
 import yaml
 from unyt import unyt_array
 
+from pyTNG.utility.exceptions import APIKeyError
+
 # -- configuration directory -- #
-_config_directory = os.path.join(pt.Path(__file__).parents[0], "bin", "config.yaml")
+_config_directory = os.path.join(pt.Path(__file__).parents[0], "../bin", "config.yaml")
 
 
 # defining the custom yaml loader for unit-ed objects
@@ -45,13 +47,18 @@ except yaml.YAMLError as er:
         f"The configuration file is corrupted! Error = {er.__repr__()}"
     )
 
+# Coordinating the API key.
+if cgparams["TNG"]["api_key"] == "":
+    raise APIKeyError
+else:
+    user_api_key = cgparams["TNG"]["api_key"]
 
 stream = (
     sys.stdout
     if cgparams["system"]["logging"]["main"]["stream"] in ["STDOUT", "stdout"]
     else sys.stderr
 )
-cgLogger = logging.getLogger("pyROSITA")
+cgLogger = logging.getLogger("pyTNG")
 
 cg_sh = logging.StreamHandler(stream=stream)
 
@@ -74,9 +81,13 @@ if cgparams["system"]["logging"]["developer"][
     # -- checking if the user has specified a directory -- #
     if cgparams["system"]["logging"]["developer"]["output_directory"] is not None:
         from datetime import datetime
-        if not os.path.exists(cgparams["system"]["logging"]["developer"]["output_directory"]):
-            pt.Path(cgparams["system"]["logging"]["developer"]["output_directory"]).mkdir(parents=True)
 
+        if not os.path.exists(
+            cgparams["system"]["logging"]["developer"]["output_directory"]
+        ):
+            pt.Path(
+                cgparams["system"]["logging"]["developer"]["output_directory"]
+            ).mkdir(parents=True)
 
         dv_fh = logging.FileHandler(
             os.path.join(
@@ -115,7 +126,9 @@ class EHalo:
 
             return Halo(*args, **kwargs)
         except ImportError:
-            return cls(*args, **kwargs)
+            obj = object.__new__(cls)
+            obj.__init__(*args, **kwargs)
+            return obj
 
     def __init__(self, *args, **kwargs):
         pass

@@ -18,12 +18,18 @@ system:
     developer:
       # ! The developer logger passes detailed logging messages to file
       enabled: true
-      output_directory: "/.dev" # You have to set this before the development logger will function.
+      output_directory: ".dev" # You have to set this before the development logger will function.
 
   display:
     # Display settings change how cluster_generator appears when in use.
     spinners: true # [WARNING] Requires Halo to be installed.
     progress_bars: true
+TNG:
+  # -- These are TNG specific settings -- #
+  base_url: "http://www.tng-project.org/api" # The base URL to determine the TNG data structure.
+  api_key: "b786c121d4b925fc59f0410942ddf69a" # Personal API key to access the core data.
+
+
 
 plotting:
   # These are options for any of the default plots generated in cluster generator.

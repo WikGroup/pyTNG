@@ -1,5 +1,0 @@
-"""
-``pyTNG`` units
-"""
-import unyt
-

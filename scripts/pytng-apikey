@@ -1,0 +1,22 @@
+#!/usr/bin/bash
+
+#----------------------------------------------------------------------------------------------------------------------#
+# Sets the USER's API key in the configuration file.                                                                   #
+#----------------------------------------------------------------------------------------------------------------------#
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+CURRENT_DIR="$(pwd)"
+USER_API_KEY="$1"
+
+echo -e "[\x1b[36;49mpytng\x1b[39;49m] - [\x1b[36;49mapikey\x1b[39;49m]: Current directory: $CURRENT_DIR"
+echo -e "[\x1b[36;49mpytng\x1b[39;49m] - [\x1b[36;49mapikey\x1b[39;49m]: Script directory: $SCRIPT_DIR"
+echo -e "[\x1b[36;49mpytng\x1b[39;49m] - [\x1b[36;49mapikey\x1b[39;49m]: Setting APIKEY for TNG API access to \x1b[31m$USER_API_KEY\x1b[39m."
+
+cd $SCRIPT_DIR
+cd "../pyTNG/bin"
+
+sed -i -E "s|(  api_key: )\"([^\"]*)\"(.*)|\1\"$USER_API_KEY\"\3|g" config.yaml
+
+cd $CURRENT_DIR
+
+echo -e "[\x1b[36;49mpytng\x1b[39;49m] - [\x1b[36;49mapikey\x1b[39;49m]: \x1b[32;49mAPIKEY successfully set to \x1b[36;49m$USER_API_KEY\x1b[39;49m."

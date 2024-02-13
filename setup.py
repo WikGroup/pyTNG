@@ -26,4 +26,5 @@ setup(
         "Topic :: Scientific/Engineering :: Visualization",
     ],
     include_package_data=True,
+    scripts=["scripts/pytng-build-sh-db", "scripts/pytng-apikey"],
 )

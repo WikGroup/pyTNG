@@ -27,7 +27,7 @@ system:
 TNG:
   # -- These are TNG specific settings -- #
   base_url: "http://www.tng-project.org/api" # The base URL to determine the TNG data structure.
-  api_key: "b786c121d4b925fc59f0410942ddf69a" # Personal API key to access the core data.
+  api_key: "" # Personal API key to access the core data.
 
 
 

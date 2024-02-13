@@ -5,13 +5,14 @@ import os
 import pathlib as pt
 import threading
 from abc import ABC
-import unyt as u
-from unyt import unyt_array,unyt_quantity
-import requests
+
 import astropy.cosmology as cosmos
-from pyTNG.utility.utils import EHalo, cgparams, devLogger, mylog, user_api_key
-from pyTNG.units.cosmological import CosmoUnits
 import numpy as np
+import requests
+from unyt import unyt_quantity
+
+from pyTNG.units.cosmological import CosmoUnits
+from pyTNG.utility.utils import EHalo, cgparams, devLogger, mylog, user_api_key
 
 _user_header = {"api-key": user_api_key}
 
@@ -22,14 +23,14 @@ _levels = {
 }
 
 available_cosmologies = {
-    "WMAP-1" : cosmos.WMAP1,
+    "WMAP-1": cosmos.WMAP1,
     "WMAP-3": cosmos.WMAP3,
-    "WMAP-5":cosmos.WMAP5,
+    "WMAP-5": cosmos.WMAP5,
     "WMAP-7": cosmos.WMAP7,
     "WMAP-9": cosmos.WMAP9,
     "Planck2013": cosmos.Planck13,
     "Plank2015": cosmos.Planck15,
-    "Plank2018": cosmos.Planck18
+    "Plank2018": cosmos.Planck18,
 }
 
 
@@ -73,12 +74,11 @@ class TNGAPI(ABC):
     def __new__(cls, **kwargs):
         _subclass_dict = {k.__name__: k for k in TNGAPI.__subclasses__()}
 
-        if len(kwargs)-1 == cls._level:
+        if len(kwargs) - 1 == cls._level:
             return object.__new__(cls)
 
         else:
-            return object.__new__(_subclass_dict[_levels[len(kwargs)-1]])
-
+            return object.__new__(_subclass_dict[_levels[len(kwargs) - 1]])
 
     def __init__(self, *args, **kwargs):
         #: The name of this API object.
@@ -97,7 +97,7 @@ class TNGAPI(ABC):
         return self.__str__()
 
     def __getattr__(self, item):
-        if hasattr(super(),item):
+        if hasattr(super(), item):
             return super().__getattribute__(item)
 
         elif item in self.attributes:
@@ -227,11 +227,11 @@ class TNGAPI(ABC):
         return fig, ax
 
 
-
 class TNGSimulationAPI(TNGAPI):
     """
     :py:class:`_backend.api.TNGAPI` object representation of a complete simulation API reference.
     """
+
     _level = 0
 
     def __init__(self, simulation=None):
@@ -247,7 +247,7 @@ class TNGSimulationAPI(TNGAPI):
         mylog.info(f"Loading API object [{simulation}].")
         #: the name of the API
         self.name = simulation
-        self.cosmology = available_cosmologies[self.attributes['cosmology']]
+        self.cosmology = available_cosmologies[self.attributes["cosmology"]]
         #: metadata
         self._meta = {"simulation": simulation}
         self._base_api_url = TNGAPI.root_api_url + f"/{self.name}/"
@@ -279,11 +279,11 @@ class TNGSimulationAPI(TNGAPI):
         return self._snapshots
 
 
-
 class TNGSnapshotAPI(TNGAPI):
     """
     :py:class:`_backend.api.TNGAPI` object representation of a snapshot API reference.
     """
+
     _level = 1
 
     def __init__(self, simulation=None, snapshot=None):
@@ -305,19 +305,21 @@ class TNGSnapshotAPI(TNGAPI):
         self.snapshot = snapshot
 
         # Meta Data
-        #----------#
-        self._meta = {"simulation":  _api_fetch(super().root_api_url + f"/{self.simulation}/")[1],
-                      "snapshot": snapshot}
+        # ----------#
+        self._meta = {
+            "simulation": _api_fetch(super().root_api_url + f"/{self.simulation}/")[1],
+            "snapshot": snapshot,
+        }
         self._base_api_url = (
             super().root_api_url + f"/{self.simulation}/" + f"snapshots/{self.name}/"
         )
 
         # Cosmological management
-        #------------------------#
-        self.cosmology = available_cosmologies[self.meta['simulation']['cosmology']]
+        # ------------------------#
+        self.cosmology = available_cosmologies[self.meta["simulation"]["cosmology"]]
         self.z = self.redshift
         self.scale_factor = self.cosmology.scale_factor(self.z)
-        self.units = CosmoUnits(self.scale_factor,self.cosmology.h)
+        self.units = CosmoUnits(self.scale_factor, self.cosmology.h)
         #: flags
         self._has_called = False
 
@@ -327,12 +329,11 @@ class TNGSnapshotAPI(TNGAPI):
         return self.simulation
 
 
-
-
 class TNGSubhaloAPI(TNGAPI):
     """
     :py:class:`_backend.api.TNGAPI` object representation of a subhalo API reference.
     """
+
     _level = 2
 
     def __init__(self, simulation=None, snapshot=None, subhalo=None):
@@ -358,8 +359,12 @@ class TNGSubhaloAPI(TNGAPI):
 
         #: metadata
         self._meta = {
-            "simulation":  _api_fetch(super().root_api_url + f"/{self.simulation}/")[1],
-            "snapshot": _api_fetch(super().root_api_url + f"/{self.simulation}/" + f"snapshots/{self.name}/")[1],
+            "simulation": _api_fetch(super().root_api_url + f"/{self.simulation}/")[1],
+            "snapshot": _api_fetch(
+                super().root_api_url
+                + f"/{self.simulation}/"
+                + f"snapshots/{self.name}/"
+            )[1],
             "subhalo": subhalo,
         }
         self._base_api_url = (
@@ -370,15 +375,14 @@ class TNGSubhaloAPI(TNGAPI):
         )
 
         # Cosmological management
-        #------------------------#
-        self.cosmology = available_cosmologies[self._meta['simulation']['cosmology']]
-        self.z = self._meta['snapshot']['redshift']
+        # ------------------------#
+        self.cosmology = available_cosmologies[self._meta["simulation"]["cosmology"]]
+        self.z = self._meta["snapshot"]["redshift"]
         self.scale_factor = self.cosmology.scale_factor(self.z)
-        self.units = CosmoUnits(self.scale_factor,self.cosmology.h)
+        self.units = CosmoUnits(self.scale_factor, self.cosmology.h)
 
         # flags
         self._has_called = False
-
 
     @property
     def parents(self):
@@ -387,47 +391,36 @@ class TNGSubhaloAPI(TNGAPI):
 
     @property
     def center_of_mass(self):
-        return self.units.array([
-            self.cm_x,self.cm_y,self.cm_z
-        ],"kpccm/h")
+        return self.units.array([self.cm_x, self.cm_y, self.cm_z], "kpccm/h")
 
     @property
-    def center_of_mass(self):
-        return self.units.array([
-            self.pos_x,self.pos_y,self.pos_z
-        ],"kpccm/h")
+    def center(self):
+        return self.units.array([self.pos_x, self.pos_y, self.pos_z], "kpccm/h")
 
     @property
     def peculiar_velocity(self):
-        return self.units.array([
-            self.vel_x,self.vel_y,self.vel_z
-        ],"km/s")
+        return self.units.array([self.vel_x, self.vel_y, self.vel_z], "km/s")
 
     @property
     def velocity_dispersion_3d(self):
-        return self.units.quantity(np.sqrt(3)*self.veldisp,"km/s")
+        return self.units.quantity(np.sqrt(3) * self.veldisp, "km/s")
 
     @property
     def spin(self):
-        return self.units.array([
-            self.spin_x,self.spin_y,self.spin_z
-        ],"(kpc/h)*(km/s)")
+        return self.units.array(
+            [self.spin_x, self.spin_y, self.spin_z], "(kpc/h)*(km/s)"
+        )
 
     @property
     def star_formation_rate(self):
-        return self.units.quantity(self.sfr,"Msun/yr")
+        return self.units.quantity(self.sfr, "Msun/yr")
 
     @property
     def mass(self):
-        return unyt_quantity(10**(self.mass_log_msun),"Msun")
+        return unyt_quantity(10 ** (self.mass_log_msun), "Msun")
 
 
-if __name__ == '__main__':
-    q = TNGSubhaloAPI(simulation="Illustris-3",snapshot=75,subhalo=2)
+if __name__ == "__main__":
+    q = TNGSubhaloAPI(simulation="Illustris-3", snapshot=75, subhalo=2)
 
     print(np.format_float_scientific(q.mass.d))
-
-
-
-
-

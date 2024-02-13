@@ -72,8 +72,8 @@ html_theme = "pydata_sphinx_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-#html_logo = "_images/cluster_generator_logo.png"
-#html_favicon = html_logo
+# html_logo = "_images/cluster_generator_logo.png"
+# html_favicon = html_logo
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),

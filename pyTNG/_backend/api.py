@@ -8,9 +8,10 @@ from abc import ABC
 import unyt as u
 from unyt import unyt_array,unyt_quantity
 import requests
-
+import astropy.cosmology as cosmos
 from pyTNG.utility.utils import EHalo, cgparams, devLogger, mylog, user_api_key
-
+from pyTNG.units.cosmological import CosmoUnits
+import numpy as np
 
 _user_header = {"api-key": user_api_key}
 
@@ -20,7 +21,16 @@ _levels = {
     2: "TNGSubhaloAPI",
 }
 
-
+available_cosmologies = {
+    "WMAP-1" : cosmos.WMAP1,
+    "WMAP-3": cosmos.WMAP3,
+    "WMAP-5":cosmos.WMAP5,
+    "WMAP-7": cosmos.WMAP7,
+    "WMAP-9": cosmos.WMAP9,
+    "Planck2013": cosmos.Planck13,
+    "Plank2015": cosmos.Planck15,
+    "Plank2018": cosmos.Planck18
+}
 
 
 def _api_fetch(url, directory=None, **kwargs):
@@ -53,10 +63,10 @@ def _api_fetch(url, directory=None, **kwargs):
 
 class TNGAPI(ABC):
     """
-    User base class for interactions with the TNG API.
+    Abstract base class representation of a TNG API call.
     """
 
-    #: The url to access the main TNG api.
+    #: base url to gain api access.
     root_api_url = cgparams["TNG"]["base_url"]
     _level = None
 
@@ -71,6 +81,7 @@ class TNGAPI(ABC):
 
 
     def __init__(self, *args, **kwargs):
+        #: The name of this API object.
         self.name = None
         self._base_api_url = None
         self._attr = None
@@ -85,12 +96,27 @@ class TNGAPI(ABC):
     def __repr__(self):
         return self.__str__()
 
+    def __getattr__(self, item):
+        if hasattr(super(),item):
+            return super().__getattribute__(item)
+
+        elif item in self.attributes:
+            return self.attributes[item]
+        else:
+            raise AttributeError(f"The attribute {item} was not found.")
+
     @property
     def meta(self):
+        """
+        The meta data associated with the API call for this object.
+        """
         return self._meta
 
     @property
     def attributes(self):
+        """
+        The specific attributes of the API call.
+        """
         if self._has_called is False:
             # we haven't called to the API yet.
             self.call()
@@ -99,15 +125,37 @@ class TNGAPI(ABC):
 
     @property
     def api_url(self):
+        """
+        The call URL for the API access object.
+        """
         return self._base_api_url
 
     def call(self, directory=None, **kwargs):
+        """
+        Calls the API.
+
+        Parameters
+        ----------
+        directory: str
+            The directory to save any downloadable objects from the call to.
+        **kwargs:
+            Optional kwargs to pass to the API settings.
+
+        Returns
+        -------
+        dict
+            The attribute dictionary. Equivalent to ``self.attributes``.
+
+        """
         status, self._attr = _api_fetch(self.api_url, directory=directory, **kwargs)
         self._has_called = True
         return self._attr
 
     @property
     def available_files(self):
+        """
+        Available downloadable objects in this API call.
+        """
         if "files" in self.attributes:
             return self.attributes["files"]
         else:
@@ -115,12 +163,36 @@ class TNGAPI(ABC):
 
     @property
     def available_vis(self):
+        """
+        Available visualization files in the API call.
+        """
         if "vis" in self.attributes:
             return self.attributes["vis"]
         else:
             return {}
 
     def image(self, obj, ax=None, fig=None, **kwargs):
+        """
+        Render a viewable image from the API through :py:mod:`matplotlib`.
+
+        Parameters
+        ----------
+        obj: str
+            The object key (from :py:attr:`TNGAPI.available_vis`) corresponding to the desired visualization file.
+        ax: :py:class:`matplotlib.axes.Axes`, optional
+            The axes to attach the figure to. If ``None``, then one is created.
+        fig: py:class:`matplotlib.axes.Figure`, optional
+            The figure to attach the figure to. If ``None``, then one is created.
+        kwargs: optional
+            Additional kwargs to pass directly to :py:func:`matplotlib.pyplot.imshow`.
+
+        Returns
+        -------
+        fig
+            The figure containing the image.
+        axes
+            The axes containing the image.
+        """
         mylog.info(f"Fetching image {obj} from {self.__str__()}.")
         from io import BytesIO
 
@@ -155,33 +227,50 @@ class TNGAPI(ABC):
         return fig, ax
 
 
+
 class TNGSimulationAPI(TNGAPI):
+    """
+    :py:class:`_backend.api.TNGAPI` object representation of a complete simulation API reference.
+    """
     _level = 0
 
     def __init__(self, simulation=None):
-        #: the name of the API
+        """
+        Initializes the :py:class:`_backend.api.TNGSimulationAPI` object.
+
+        Parameters
+        ----------
+        simulation: str
+            The name of the simulation to load.
+        """
         super().__init__()
         mylog.info(f"Loading API object [{simulation}].")
+        #: the name of the API
         self.name = simulation
+        self.cosmology = available_cosmologies[self.attributes['cosmology']]
         #: metadata
         self._meta = {"simulation": simulation}
         self._base_api_url = TNGAPI.root_api_url + f"/{self.name}/"
         self._attr = None
         self._snapshots = None
+
         # flags
         self._has_called = False
         self._has_called_snapshots = False
 
     @property
     def parents(self):
+        """Parent simulations of this simulation."""
         return self.attributes["parent_simulation"]
 
     @property
     def children(self):
+        """Child simulations of this simulation."""
         return self.attributes["child_simulation"]
 
     @property
     def snapshots(self):
+        """Available snapshots for this simulation."""
         if not self._has_called_snapshots:
             status, self._snapshots = _api_fetch(
                 self.attributes["snapshots"], directory=None
@@ -190,10 +279,24 @@ class TNGSimulationAPI(TNGAPI):
         return self._snapshots
 
 
+
 class TNGSnapshotAPI(TNGAPI):
+    """
+    :py:class:`_backend.api.TNGAPI` object representation of a snapshot API reference.
+    """
     _level = 1
 
     def __init__(self, simulation=None, snapshot=None):
+        """
+        Initializes the :py:class:`_backend.api.TNGSnapshotAPI` object.
+
+        Parameters
+        ----------
+        simulation: str
+            The name of the simulation to load.
+        snapshot: int
+            The snapshot number to load.
+        """
         #: the name of the API
         super().__init__()
         mylog.info(f"Loading API object [{simulation} - {snapshot}].")
@@ -201,24 +304,50 @@ class TNGSnapshotAPI(TNGAPI):
         self.simulation = simulation
         self.snapshot = snapshot
 
-        #: metadata
-        self._meta = {"simulation": simulation, "snapshot": snapshot}
+        # Meta Data
+        #----------#
+        self._meta = {"simulation":  _api_fetch(super().root_api_url + f"/{self.simulation}/")[1],
+                      "snapshot": snapshot}
         self._base_api_url = (
             super().root_api_url + f"/{self.simulation}/" + f"snapshots/{self.name}/"
         )
 
-        # flags
+        # Cosmological management
+        #------------------------#
+        self.cosmology = available_cosmologies[self.meta['simulation']['cosmology']]
+        self.z = self.redshift
+        self.scale_factor = self.cosmology.scale_factor(self.z)
+        self.units = CosmoUnits(self.scale_factor,self.cosmology.h)
+        #: flags
         self._has_called = False
 
     @property
     def parents(self):
+        """Simulation in which this snapshot is a child."""
         return self.simulation
 
 
+
+
 class TNGSubhaloAPI(TNGAPI):
+    """
+    :py:class:`_backend.api.TNGAPI` object representation of a subhalo API reference.
+    """
     _level = 2
 
     def __init__(self, simulation=None, snapshot=None, subhalo=None):
+        """
+        Initializes the :py:class:`_backend.api.TNGsubhaloAPI` object.
+
+        Parameters
+        ----------
+        simulation: str
+            The name of the simulation to load.
+        snapshot: int
+            The snapshot number to load.
+        subhalo: int
+            The subhalo number to load.
+        """
         #: the name of the API
         super().__init__(self)
         mylog.info(f"Loading API object [{simulation}-{snapshot}-{subhalo}].")
@@ -226,10 +355,11 @@ class TNGSubhaloAPI(TNGAPI):
         self.simulation = simulation
         self.snapshot = snapshot
         self.subhalo = subhalo
+
         #: metadata
         self._meta = {
-            "simulation": simulation,
-            "snapshot": snapshot,
+            "simulation":  _api_fetch(super().root_api_url + f"/{self.simulation}/")[1],
+            "snapshot": _api_fetch(super().root_api_url + f"/{self.simulation}/" + f"snapshots/{self.name}/")[1],
             "subhalo": subhalo,
         }
         self._base_api_url = (
@@ -239,18 +369,64 @@ class TNGSubhaloAPI(TNGAPI):
             + f"subhalos/{self.subhalo}"
         )
 
+        # Cosmological management
+        #------------------------#
+        self.cosmology = available_cosmologies[self._meta['simulation']['cosmology']]
+        self.z = self._meta['snapshot']['redshift']
+        self.scale_factor = self.cosmology.scale_factor(self.z)
+        self.units = CosmoUnits(self.scale_factor,self.cosmology.h)
+
         # flags
         self._has_called = False
 
+
     @property
     def parents(self):
+        """Access to the parent snapshot."""
         return self.attributes["snap"]
 
     @property
-    def center(self):
-        unyt_array([self.attributes['cm_x'],
-                    self.attributes['cm_y'],
-                    self.attributes['cm_z']],u.kpccm/u.h)
+    def center_of_mass(self):
+        return self.units.array([
+            self.cm_x,self.cm_y,self.cm_z
+        ],"kpccm/h")
+
+    @property
+    def center_of_mass(self):
+        return self.units.array([
+            self.pos_x,self.pos_y,self.pos_z
+        ],"kpccm/h")
+
+    @property
+    def peculiar_velocity(self):
+        return self.units.array([
+            self.vel_x,self.vel_y,self.vel_z
+        ],"km/s")
+
+    @property
+    def velocity_dispersion_3d(self):
+        return self.units.quantity(np.sqrt(3)*self.veldisp,"km/s")
+
+    @property
+    def spin(self):
+        return self.units.array([
+            self.spin_x,self.spin_y,self.spin_z
+        ],"(kpc/h)*(km/s)")
+
+    @property
+    def star_formation_rate(self):
+        return self.units.quantity(self.sfr,"Msun/yr")
+
+    @property
+    def mass(self):
+        return unyt_quantity(10**(self.mass_log_msun),"Msun")
+
+
+if __name__ == '__main__':
+    q = TNGSubhaloAPI(simulation="Illustris-3",snapshot=75,subhalo=2)
+
+    print(np.format_float_scientific(q.mass.d))
+
 
 
 

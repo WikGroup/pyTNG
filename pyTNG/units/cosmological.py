@@ -18,27 +18,28 @@ a_unit = Unit(1*a,1.0,dimensions=a)
 cm_length = unyt_dims.length/a
 
 class CosmoEquivalence(Equivalence):
-
+    """
+    Cosmological equivalence for conversion between comoving and physical coordinates.
+    """
     type_name = "cosmology"
-    _dims = (cm_length,unyt_dims.length)
+    _dims = (cm_length,unyt_dims.length) # we are converting length units in the various cosmological quantities.
 
-    def _convert(self, x, new_dims,scale=1):
-
+    def _convert(self, x, new_dims,scale_factor=1):
         if new_dims == unyt_dims.length:
-            return np.multiply(x, scale, out=self._get_out(x))
+            return np.multiply(x, scale_factor, out=self._get_out(x))
         elif new_dims == cm_length:
-            return np.true_divide(x, scale, out=self._get_out(x))
+            return np.true_divide(x, scale_factor, out=self._get_out(x))
 
     def __str__(self):
-        return "cosmological: scale-factor <-> unitless"
+        return "cosmology: comoving dimension <-> physical dimension [function of a]"
 
 class CosmoUnits:
     """
-    Unit class representing cosmological units.
+    Comoving units for a relevant scale.
     """
     _skipped_symbols = "%cm"
 
-    def __init__(self,cosmology,z):
+    def __init__(self,scale_factor,littleh):
         """
         Initializes the :py:class:`units.cosmological.CosmoUnits`
 
@@ -50,10 +51,14 @@ class CosmoUnits:
         #: :py:class:`unyt.unit_registry.UnitRegistry` instance.
         self.registry = default_unit_registry
         self.registry.add("scale_factor",1.0,a)
+        #: scale factor unit.
         self.a_unit = Unit("scale_factor",1.0,dimensions=a,registry=self.registry)
-        self.cosmology = cosmology
-        self.z = z
-        # constructing the co-moving coordinate names.
+        #: the scale factor for this unit system.
+        self.scale_factor = scale_factor
+        self.littleh = littleh
+
+        # Constructing comoving coordinates
+        #==================================#
         _lut_names = list(self.registry.lut.keys())
         for unit_name in _lut_names:
             _s,_ud,_bv,_tex,_bool = self.registry.lut[unit_name]
@@ -69,12 +74,18 @@ class CosmoUnits:
 
             self.registry.add(unit_name+"cm",_s,_new_ud,_new_tex,float(_bv),_bool)
 
+        # -- adding the little h unit -- #
+        self.registry.add("h",base_value=self.littleh,dimensions=unyt_dims.dimensionless,tex_repr="h",offset=0.0,prefixable=False)
+        # creating the attributes of the unit object
+        #===========================================#
         self._produce_unit_attributes()
 
     def _produce_unit_attributes(self):
         for unit_key,unit_data in self.registry.lut.items():
             if unit_key != "%cm":
                 self.__setattr__(unit_key,Unit(unit_key,registry=self.registry))
+
+
 
     def array(self,value,units):
         """
@@ -111,9 +122,6 @@ class CosmoUnits:
         """
         return unyt_quantity(value, units, registry=self.registry)
 
-    @staticmethod
-    def _convert(dimension):
-        return dimension.subs(cm_length,a*unyt_dims.length)
 
 
 

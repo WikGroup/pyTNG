@@ -17,6 +17,7 @@ import sys
 sys.path.insert(0, os.path.abspath("../../pyTNG"))
 sys.path.insert(0, os.path.abspath("../.."))
 
+print(sys.path)
 # -- Project information -----------------------------------------------------
 
 project = "pyTNG"

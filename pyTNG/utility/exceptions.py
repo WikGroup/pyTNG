@@ -9,5 +9,5 @@ class APIKeyError(Exception):
     """
 
     def __init__(self):
-        self.message = "Backend failed to find API key. This can be set in the /bin/config.yaml file."
-        super.__init__()
+        self.message = "Backend failed to find API key. Use pytng-apikey <API-KEY> to set the API key."
+        super().__init__(self.message)

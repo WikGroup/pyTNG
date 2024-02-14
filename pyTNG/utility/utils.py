@@ -131,13 +131,16 @@ class EHalo:
             return obj
 
     def __init__(self, *args, **kwargs):
-        pass
+        if "text" in kwargs:
+            self.text = kwargs["text"]
+        else:
+            self.text = ""
 
     def __enter__(self):
-        pass
+        mylog.info(self.text)
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        pass
+        mylog.info("FINISHED.")
 
 
 def split(a, n):

@@ -419,8 +419,71 @@ class TNGSubhaloAPI(TNGAPI):
     def mass(self):
         return unyt_quantity(10 ** (self.mass_log_msun), "Msun")
 
+    def download(self, filename, grab_parent=False, **kwargs):
+        return download_cutout(
+            self.simulation,
+            self.snapshot,
+            self.subhalo,
+            filename,
+            grab_parent=grab_parent,
+            **kwargs,
+        )
+
+
+def download_cutout(
+    simulation, snapshot, subhalo, filename, grab_parent=False, **kwargs
+):
+    """
+    Downloads the TNG cutout of the specified subhalo.
+
+    Parameters
+    ----------
+    simulation: str
+        The name of the simulation to pull from.
+    snapshot: int
+        The snapshot number.
+    subhalo: int
+        The subhalo id.
+    filename: str
+        The filename at which to save the cutout.
+    grab_parent: bool, optional
+        If ``True``, the function will iteratively seek out a parent halo until it finds the central halo of the system.
+
+    Returns
+    -------
+
+    """
+    base_url = (
+        TNGAPI.root_api_url
+        + f"/{simulation}/"
+        + f"snapshots/{snapshot}/"
+        + f"subhalos/{subhalo}"
+    )
+
+    _, meta = _api_fetch(base_url)
+
+    call_url = (
+        meta["cutouts"]["subhalo"]
+        if not grab_parent
+        else meta["cutouts"]["parent_halo"]
+    )
+    with EHalo(text=f"Downloading {simulation}-{snapshot}-{subhalo} [{call_url}]"):
+        devLogger.debug(
+            f"Calling {call_url} [Thread={threading.current_thread().name}]."
+        )
+        r = requests.get(call_url, params=kwargs, headers=_user_header)
+        r.raise_for_status()
+
+        with open(filename, "wb") as f:
+            f.write(r.content)
+
+    return filename
+
+
+def download_snapshot():
+    pass
+
 
 if __name__ == "__main__":
     q = TNGSubhaloAPI(simulation="Illustris-3", snapshot=75, subhalo=2)
-
-    print(np.format_float_scientific(q.mass.d))
+    q.download("test.hdf5", grab_parent=False)
